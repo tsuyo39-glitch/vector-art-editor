@@ -1460,7 +1460,7 @@
       select: "クリックで選択、Shift+クリックで追加。ハンドルで拡大縮小、上のハンドルで回転します。",
       node: "パスをクリックすると頂点が出ます。頂点はドラッグで移動、Altクリックで削除、線をダブルクリックで追加。",
       pen: "クリックで頂点を追加、ドラッグで曲線に。最初の点をクリックで閉じ、Enterかダブルクリックで確定します。",
-      pencil: "ドラッグでそのまま線を描きます。線に集中できるようマス目は隠れます。",
+      pencil: "ドラッグでそのまま線を描きます。線だけを見られるようマス目と選択枠は隠れます。",
       line: "ドラッグで直線を引きます。Shiftで角度を45度ずつに固定します。",
       rect: "ドラッグで四角を描きます。Shiftで正方形、Altで中心から描きます。",
       ellipse: "ドラッグで丸を描きます。Shiftで正円、Altで中心から描きます。",
@@ -2040,6 +2040,10 @@
     }
 
     function selectionOverlayMarkup() {
+      // フリーハンド中は描いた線を囲む枠を出さない（選択状態そのものは残す）
+      if (activeTool === "pencil") {
+        return "";
+      }
       const frame = selectionFrame();
       if (!frame) {
         return "";
@@ -2462,11 +2466,14 @@
         const ay = points[first].y;
         const bx = points[last].x;
         const by = points[last].y;
-        const length = Math.hypot(bx - ax, by - ay) || 1;
+        const length = Math.hypot(bx - ax, by - ay);
         for (let index = first + 1; index < last; index += 1) {
-          const distance = Math.abs(
-            (bx - ax) * (ay - points[index].y) - (ax - points[index].x) * (by - ay)
-          ) / length;
+          // 始点と終点が重なる（丸く閉じた線）ときは直線ではなく点からの距離で測る
+          const distance = length < 1e-6
+            ? Math.hypot(points[index].x - ax, points[index].y - ay)
+            : Math.abs(
+              (bx - ax) * (ay - points[index].y) - (ax - points[index].x) * (by - ay)
+            ) / length;
           if (distance > maxDistance) {
             maxDistance = distance;
             maxIndex = index;
