@@ -194,12 +194,12 @@
       border-radius: var(--radius);
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), var(--shadow);
       overflow: hidden;
+      touch-action: none;
     }
 
     /* フリーハンドは線に集中したいのでマス目を消す */
     .stage-shell[data-active-tool="pencil"] {
       background-image: none;
-      touch-action: none;
     }
 
     #stage {

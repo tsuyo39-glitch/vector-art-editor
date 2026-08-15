@@ -1,4 +1,4 @@
-const CACHE_NAME = "vector-art-editor-v1";
+const CACHE_NAME = "vector-art-editor-v2";
 const APP_ASSETS = [
   "./",
   "index.html",
@@ -36,8 +36,9 @@ self.addEventListener("fetch", (event) => {
   const requestUrl = new URL(event.request.url);
   const isHtmlRequest = event.request.mode === "navigate" || requestUrl.pathname.endsWith(".html") || requestUrl.pathname.endsWith("/");
   if (isHtmlRequest) {
+    // ブラウザのHTTPキャッシュに古い本体が残ると更新に気づけないので、毎回取り直す
     event.respondWith(
-      fetch(event.request).then((response) => {
+      fetch(event.request, { cache: "no-store" }).then((response) => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
