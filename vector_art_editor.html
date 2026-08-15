@@ -194,6 +194,11 @@
       border-radius: var(--radius);
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), var(--shadow);
       overflow: hidden;
+    }
+
+    /* フリーハンドは線に集中したいのでマス目を消す */
+    .stage-shell[data-active-tool="pencil"] {
+      background-image: none;
       touch-action: none;
     }
 
@@ -522,6 +527,18 @@
       height: 22px;
       pointer-events: none;
       stroke-width: 2.1;
+    }
+
+    .layer-count {
+      margin-left: auto;
+      padding-left: 8px;
+      color: #7a839c;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .object-row.active .layer-count {
+      color: var(--accent-dark);
     }
 
     .object-kind {
@@ -910,6 +927,13 @@
                 <path d="M9 18h6"></path>
               </svg>
             </button>
+            <button class="tool-btn" type="button" data-tool="fill" aria-label="塗りつぶし" title="塗りつぶし (F)">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5.2 12.1l6.2-6.2a2.3 2.3 0 0 1 3.2 0l4.2 4.2a2.3 2.3 0 0 1 0 3.2L13.1 19a2.3 2.3 0 0 1-3.2 0l-4.7-4.7a1.5 1.5 0 0 1 0-2.2z"></path>
+                <path d="M8.6 8.7l6.7 6.7"></path>
+                <path d="M19.2 16.7c1 1 1.6 1.8 1.6 2.5a1.8 1.8 0 0 1-3.6 0c0-.7.7-1.5 2-2.5z"></path>
+              </svg>
+            </button>
           </div>
           <p class="hint" id="toolHint">ドラッグで選択、クリックでオブジェクトを選びます。</p>
         </section>
@@ -1177,6 +1201,45 @@
         </section>
 
         <section class="panel stack">
+          <h2>レイヤー</h2>
+          <div class="icon-row" aria-label="レイヤー操作">
+            <button class="action-btn" id="addLayer" type="button" aria-label="レイヤーを追加" title="レイヤーを追加">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14"></path>
+                <path d="M5 12h14"></path>
+              </svg>
+            </button>
+            <button class="action-btn" id="duplicateLayer" type="button" aria-label="レイヤーを複製" title="レイヤーを複製">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="8" y="8" width="11" height="11" rx="2.4"></rect>
+                <rect x="5" y="5" width="11" height="11" rx="2.4"></rect>
+              </svg>
+            </button>
+            <button class="action-btn" id="moveLayerUp" type="button" aria-label="レイヤーを上へ" title="レイヤーを上へ">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5"></path>
+                <path d="M6.5 10.5L12 5l5.5 5.5"></path>
+              </svg>
+            </button>
+            <button class="action-btn" id="moveLayerDown" type="button" aria-label="レイヤーを下へ" title="レイヤーを下へ">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14"></path>
+                <path d="M6.5 13.5L12 19l5.5-5.5"></path>
+              </svg>
+            </button>
+            <button class="action-btn danger" id="deleteLayer" type="button" aria-label="レイヤーを削除" title="レイヤーを削除">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6.8 8.2h10.4"></path>
+                <path d="M10 8.2V6.7c0-.7.5-1.2 1.2-1.2h1.6c.7 0 1.2.5 1.2 1.2v1.5"></path>
+                <path d="M8.3 8.2l.6 10.2c.1.8.7 1.4 1.5 1.4h3.2c.8 0 1.4-.6 1.5-1.4l.6-10.2"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="object-list" id="layerList" aria-label="レイヤー一覧"></div>
+          <p class="mini-note" id="layerNote">クリックで切り替え、ダブルクリックで名前を変更できます。</p>
+        </section>
+
+        <section class="panel stack">
           <h2>オブジェクト</h2>
           <div class="object-list" id="objectList" aria-label="オブジェクト一覧"></div>
           <p class="mini-note" id="objectNote">まだオブジェクトがありません。</p>
@@ -1354,6 +1417,12 @@
     const selectionStatus = document.querySelector("#selectionStatus");
     const objectList = document.querySelector("#objectList");
     const objectNote = document.querySelector("#objectNote");
+    const layerList = document.querySelector("#layerList");
+    const addLayer = document.querySelector("#addLayer");
+    const duplicateLayer = document.querySelector("#duplicateLayer");
+    const moveLayerUp = document.querySelector("#moveLayerUp");
+    const moveLayerDown = document.querySelector("#moveLayerDown");
+    const deleteLayer = document.querySelector("#deleteLayer");
 
     const sizePreset = document.querySelector("#sizePreset");
     const canvasWidthInput = document.querySelector("#canvasWidth");
@@ -1383,19 +1452,21 @@
       rect: "四角",
       ellipse: "丸",
       polygon: "多角形",
-      text: "テキスト"
+      text: "テキスト",
+      fill: "塗りつぶし"
     };
 
     const toolHints = {
       select: "クリックで選択、Shift+クリックで追加。ハンドルで拡大縮小、上のハンドルで回転します。",
       node: "パスをクリックすると頂点が出ます。頂点はドラッグで移動、Altクリックで削除、線をダブルクリックで追加。",
       pen: "クリックで頂点を追加、ドラッグで曲線に。最初の点をクリックで閉じ、Enterかダブルクリックで確定します。",
-      pencil: "ドラッグでそのまま線を描きます。なめらかさで滑らかさを調整できます。",
+      pencil: "ドラッグでそのまま線を描きます。線に集中できるようマス目は隠れます。",
       line: "ドラッグで直線を引きます。Shiftで角度を45度ずつに固定します。",
       rect: "ドラッグで四角を描きます。Shiftで正方形、Altで中心から描きます。",
       ellipse: "ドラッグで丸を描きます。Shiftで正円、Altで中心から描きます。",
       polygon: "ドラッグで多角形や星を描きます。Shiftで角度を固定します。",
-      text: "クリックした場所にテキストを置きます。既存の文字はダブルクリックで編集できます。"
+      text: "クリックした場所にテキストを置きます。既存の文字はダブルクリックで編集できます。",
+      fill: "オブジェクトをクリックすると塗りの色を流し込みます。Shift+クリックで線の色、何もない所をクリックで背景色。"
     };
 
     const typeNames = {
@@ -1408,6 +1479,9 @@
 
     let doc = { width: 800, height: 600, background: "#ffffff", backgroundOn: true };
     let shapes = [];
+    let layers = [];
+    let activeLayerId = 0;
+    let layerCounter = 0;
     let selectedIds = [];
     let shapeCounter = 0;
     let activeTool = "select";
@@ -1453,6 +1527,7 @@
     let editingNodePathId = null;
     let selectedNodeIndex = -1;
     let editingObjectId = null;
+    let editingLayerId = null;
     let spaceDown = false;
     const activePointers = new Map();
     let pinch = null;
@@ -1521,6 +1596,55 @@
     function nextName(type) {
       shapeCounter += 1;
       return `${typeNames[type] || "図形"} ${shapeCounter}`;
+    }
+
+    function layerById(id) {
+      return layers.find((layer) => layer.id === id) || null;
+    }
+
+    function activeLayer() {
+      return layerById(activeLayerId) || layers[0] || null;
+    }
+
+    function layerOf(shape) {
+      return layerById(shape.layerId);
+    }
+
+    function isShapeVisible(shape) {
+      const layer = layerOf(shape);
+      return shape.visible && (!layer || layer.visible);
+    }
+
+    function shapesOfLayer(layerId) {
+      return shapes.filter((shape) => shape.layerId === layerId);
+    }
+
+    // shapes は「下のレイヤーの図形から順に並ぶ」状態を保つ。描画順と重ね順の操作がこれ前提。
+    function normalizeShapeOrder() {
+      const order = new Map(layers.map((layer, index) => [layer.id, index]));
+      shapes = shapes
+        .map((shape, index) => ({ shape, index }))
+        .sort((a, b) => {
+          const layerDiff = (order.get(a.shape.layerId) ?? 0) - (order.get(b.shape.layerId) ?? 0);
+          return layerDiff !== 0 ? layerDiff : a.index - b.index;
+        })
+        .map((entry) => entry.shape);
+    }
+
+    function createLayer(name) {
+      layerCounter += 1;
+      return { id: idSeed++, name: name || `レイヤー ${layerCounter}`, visible: true };
+    }
+
+    function ensureLayer() {
+      if (!layers.length) {
+        const layer = createLayer();
+        layers.push(layer);
+        activeLayerId = layer.id;
+      }
+      if (!layerById(activeLayerId)) {
+        activeLayerId = layers[layers.length - 1].id;
+      }
     }
 
     function currentStyle() {
@@ -1598,7 +1722,7 @@
     }
 
     function shapeMarkup(shape) {
-      const common = `data-id="${shape.id}"${shape.visible ? "" : ' visibility="hidden" pointer-events="none"'}`;
+      const common = `data-id="${shape.id}"${isShapeVisible(shape) ? "" : ' visibility="hidden" pointer-events="none"'}`;
       const paint = styleAttributes(shape);
       if (shape.type === "rect") {
         const rx = round(clamp(shape.rx, 0, Math.min(shape.w, shape.h) / 2));
@@ -1875,7 +1999,7 @@
     }
 
     function renderGrid() {
-      if (!grid.show) {
+      if (!grid.show || activeTool === "pencil") {
         gridLayer.innerHTML = "";
         return;
       }
@@ -2040,14 +2164,41 @@
       return `<svg class="object-kind" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${paths[type] || paths.path}</svg>`;
     }
 
+    function renderLayerList() {
+      const rows = layers.slice().reverse().map((layer) => {
+        const active = layer.id === activeLayerId;
+        const count = shapesOfLayer(layer.id).length;
+        if (layer.id === editingLayerId) {
+          return `<div class="object-row${active ? " active" : ""}" data-layer="${layer.id}">
+            <button class="action-btn object-icon-btn" type="button" data-layer-visibility="${layer.id}" aria-label="表示切替">${visibilityIcon(layer.visible)}</button>
+            <input class="object-name-input" type="text" data-layer-rename="${layer.id}" value="${escapeXml(layer.name)}" spellcheck="false">
+          </div>`;
+        }
+        return `<div class="object-row${active ? " active" : ""}${layer.visible ? "" : " hidden-object"}" data-layer="${layer.id}">
+          <button class="action-btn object-icon-btn" type="button" data-layer-visibility="${layer.id}" aria-label="表示切替" title="表示切替">${visibilityIcon(layer.visible)}</button>
+          <button class="action-btn object-name-button" type="button" data-layer-select="${layer.id}" title="${escapeXml(layer.name)}"><span>${escapeXml(layer.name)}</span><span class="layer-count">${count}</span></button>
+        </div>`;
+      });
+      layerList.innerHTML = rows.join("");
+      const editor = layerList.querySelector("[data-layer-rename]");
+      if (editor) {
+        editor.focus();
+        editor.select();
+      }
+      moveLayerUp.disabled = layers.length < 2;
+      moveLayerDown.disabled = layers.length < 2;
+      deleteLayer.disabled = layers.length < 2;
+    }
+
     function renderObjectList() {
-      if (!shapes.length) {
+      const visibleShapes = shapesOfLayer(activeLayerId);
+      if (!visibleShapes.length) {
         objectList.innerHTML = "";
-        objectNote.textContent = "まだオブジェクトがありません。";
+        objectNote.textContent = `${activeLayer() ? activeLayer().name : "レイヤー"} にはまだオブジェクトがありません。`;
         return;
       }
-      objectNote.textContent = "クリックで選択、ダブルクリックで名前を変更できます。";
-      const rows = shapes.slice().reverse().map((shape) => {
+      objectNote.textContent = `${activeLayer().name} の中身です。クリックで選択、ダブルクリックで名前を変更。`;
+      const rows = visibleShapes.slice().reverse().map((shape) => {
         const active = selectedIds.includes(shape.id);
         if (shape.id === editingObjectId) {
           return `<div class="object-row${active ? " active" : ""}" data-object="${shape.id}">
@@ -2116,7 +2267,7 @@
     function updateStatus() {
       sizeLabel.textContent = `${doc.width} x ${doc.height}`;
       toolLabel.textContent = toolNames[activeTool];
-      const hidden = shapes.filter((shape) => !shape.visible).length;
+      const hidden = shapes.filter((shape) => !isShapeVisible(shape)).length;
       objectCountLabel.textContent = hidden
         ? `${shapes.length} 個のオブジェクト（${hidden} 個非表示）`
         : `${shapes.length} 個のオブジェクト`;
@@ -2132,6 +2283,7 @@
       renderGrid();
       renderScene();
       renderOverlay();
+      renderLayerList();
       renderObjectList();
       updateSelectionPanel();
       updateStatus();
@@ -2158,14 +2310,21 @@
       return {
         doc: { ...doc },
         shapes: JSON.parse(JSON.stringify(shapes)),
+        layers: JSON.parse(JSON.stringify(layers)),
+        activeLayerId,
         selectedIds: selectedIds.slice(),
-        counter: shapeCounter
+        counter: shapeCounter,
+        layerCounter
       };
     }
 
     function restoreState(state) {
       doc = { ...state.doc };
       shapes = JSON.parse(JSON.stringify(state.shapes));
+      layers = JSON.parse(JSON.stringify(state.layers));
+      activeLayerId = state.activeLayerId;
+      layerCounter = state.layerCounter;
+      ensureLayer();
       selectedIds = state.selectedIds.filter((id) => shapes.some((shape) => shape.id === id));
       shapeCounter = state.counter;
       editingNodePathId = selectedIds.length === 1 ? editingNodePathId : null;
@@ -2202,10 +2361,12 @@
     let idSeed = 1;
 
     function makeShape(type, extra) {
+      ensureLayer();
       return {
         id: idSeed++,
         type,
         name: nextName(type),
+        layerId: activeLayerId,
         visible: true,
         rot: 0,
         style: currentStyle(),
@@ -2215,6 +2376,7 @@
 
     function addShape(shape, { select = true } = {}) {
       shapes.push(shape);
+      normalizeShapeOrder();
       if (select) {
         selectedIds = [shape.id];
       }
@@ -2491,6 +2653,41 @@
       setNotice("テキストを追加しました");
     }
 
+    // 別レイヤーの図形を触ったら、そのレイヤーを作業中にする
+    function followShapeLayer(shape) {
+      if (shape && shape.layerId !== activeLayerId) {
+        activeLayerId = shape.layerId;
+        selectedIds = [];
+      }
+    }
+
+    function applyPaint(shape, toStroke, point) {
+      if (!shape) {
+        const inside = point.x >= 0 && point.y >= 0 && point.x <= doc.width && point.y <= doc.height;
+        if (!inside || toStroke) {
+          setNotice("塗るオブジェクトがありません");
+          return;
+        }
+        pushHistory();
+        doc.background = style.fill;
+        doc.backgroundOn = style.fillOn;
+        syncCanvasControls();
+        requestRender();
+        setNotice("背景の色を変えました");
+        return;
+      }
+      pushHistory();
+      followShapeLayer(shape);
+      if (toStroke) {
+        shape.style.stroke = style.strokeOn ? style.stroke : "none";
+      } else {
+        shape.style.fill = style.fillOn ? style.fill : "none";
+      }
+      selectedIds = [shape.id];
+      requestRender();
+      setNotice(`${shape.name} の${toStroke ? "線" : "塗り"}を変えました`);
+    }
+
     function hitShapeFromEvent(event) {
       const element = event.target.closest ? event.target.closest("[data-id]") : null;
       if (!element) {
@@ -2679,8 +2876,9 @@
       const y = Math.min(startPoint.y, endPoint.y);
       const right = Math.max(startPoint.x, endPoint.x);
       const bottom = Math.max(startPoint.y, endPoint.y);
-      const hits = shapes.filter((shape) => {
-        if (!shape.visible) {
+      // 範囲選択は作業中のレイヤーの中だけを対象にする
+      const hits = shapesOfLayer(activeLayerId).filter((shape) => {
+        if (!isShapeVisible(shape)) {
           return false;
         }
         const box = worldBBox(shape);
@@ -2925,9 +3123,15 @@
         return;
       }
 
+      if (activeTool === "fill") {
+        applyPaint(hitShapeFromEvent(event), event.shiftKey, point);
+        return;
+      }
+
       if (activeTool === "select") {
         const hit = hitShapeFromEvent(event);
         if (hit) {
+          followShapeLayer(hit);
           if (event.shiftKey) {
             selectedIds = selectedIds.includes(hit.id)
               ? selectedIds.filter((id) => id !== hit.id)
@@ -2951,6 +3155,9 @@
 
       if (activeTool === "node") {
         const hit = hitShapeFromEvent(event);
+        if (hit) {
+          followShapeLayer(hit);
+        }
         if (hit && hit.type === "path") {
           startNodeEditing(hit);
         } else {
@@ -3192,29 +3399,144 @@
       setNotice("削除しました");
     }
 
+    // 重ね順は同じレイヤーの中だけで動かす
     function changeOrder(mode) {
       const list = selectedShapes();
       if (!list.length) {
         return;
       }
       pushHistory();
-      const picked = shapes.filter((shape) => selectedIds.includes(shape.id));
-      const rest = shapes.filter((shape) => !selectedIds.includes(shape.id));
-      if (mode === "front") {
-        shapes = rest.concat(picked);
-      } else if (mode === "back") {
-        shapes = picked.concat(rest);
-      } else {
-        const step = mode === "up" ? 1 : -1;
-        const indexes = picked.map((shape) => shapes.indexOf(shape));
-        const ordered = step > 0 ? indexes.slice().sort((a, b) => b - a) : indexes.slice().sort((a, b) => a - b);
-        ordered.forEach((index) => {
-          const next = index + step;
-          if (next < 0 || next >= shapes.length || selectedIds.includes(shapes[next].id)) {
-            return;
+      const layerIds = Array.from(new Set(list.map((shape) => shape.layerId)));
+      layerIds.forEach((layerId) => {
+        const siblings = shapesOfLayer(layerId);
+        const picked = siblings.filter((shape) => selectedIds.includes(shape.id));
+        const rest = siblings.filter((shape) => !selectedIds.includes(shape.id));
+        let ordered;
+        if (mode === "front") {
+          ordered = rest.concat(picked);
+        } else if (mode === "back") {
+          ordered = picked.concat(rest);
+        } else {
+          ordered = siblings.slice();
+          const step = mode === "up" ? 1 : -1;
+          const indexes = picked.map((shape) => ordered.indexOf(shape));
+          const sorted = step > 0 ? indexes.sort((a, b) => b - a) : indexes.sort((a, b) => a - b);
+          sorted.forEach((index) => {
+            const next = index + step;
+            if (next < 0 || next >= ordered.length || selectedIds.includes(ordered[next].id)) {
+              return;
+            }
+            const [moved] = ordered.splice(index, 1);
+            ordered.splice(next, 0, moved);
+          });
+        }
+        // レイヤー内の並びだけを差し替える
+        const slots = [];
+        shapes.forEach((shape, index) => {
+          if (shape.layerId === layerId) {
+            slots.push(index);
           }
-          const [moved] = shapes.splice(index, 1);
-          shapes.splice(next, 0, moved);
+        });
+        slots.forEach((slot, index) => {
+          shapes[slot] = ordered[index];
+        });
+      });
+      requestRender();
+    }
+
+    function addNewLayer() {
+      pushHistory();
+      const layer = createLayer();
+      const index = layers.findIndex((item) => item.id === activeLayerId);
+      layers.splice(index + 1, 0, layer);
+      activeLayerId = layer.id;
+      selectedIds = [];
+      normalizeShapeOrder();
+      requestRender();
+      setNotice(`${layer.name} を追加しました`);
+    }
+
+    function duplicateActiveLayer() {
+      const source = activeLayer();
+      if (!source) {
+        return;
+      }
+      pushHistory();
+      const layer = createLayer(`${source.name} のコピー`);
+      layer.visible = source.visible;
+      const index = layers.findIndex((item) => item.id === source.id);
+      layers.splice(index + 1, 0, layer);
+      shapesOfLayer(source.id).forEach((shape) => {
+        const copy = JSON.parse(JSON.stringify(shape));
+        copy.id = idSeed++;
+        copy.layerId = layer.id;
+        shapes.push(copy);
+      });
+      activeLayerId = layer.id;
+      selectedIds = [];
+      normalizeShapeOrder();
+      requestRender();
+      setNotice(`${layer.name} を作りました`);
+    }
+
+    function moveActiveLayer(direction) {
+      if (layers.length < 2) {
+        return;
+      }
+      const index = layers.findIndex((layer) => layer.id === activeLayerId);
+      const next = index + direction;
+      if (next < 0 || next >= layers.length) {
+        setNotice("これ以上は動かせません");
+        return;
+      }
+      pushHistory();
+      const [moved] = layers.splice(index, 1);
+      layers.splice(next, 0, moved);
+      normalizeShapeOrder();
+      requestRender();
+    }
+
+    function deleteActiveLayer() {
+      if (layers.length < 2) {
+        setNotice("レイヤーは1つ必要です");
+        return;
+      }
+      const layer = activeLayer();
+      pushHistory();
+      const index = layers.findIndex((item) => item.id === layer.id);
+      layers.splice(index, 1);
+      shapes = shapes.filter((shape) => shape.layerId !== layer.id);
+      selectedIds = [];
+      editingNodePathId = null;
+      activeLayerId = layers[Math.max(0, index - 1)].id;
+      requestRender();
+      setNotice(`${layer.name} を削除しました`);
+    }
+
+    function selectLayer(layerId) {
+      if (activeLayerId === layerId) {
+        return;
+      }
+      activeLayerId = layerId;
+      selectedIds = selectedIds.filter((id) => {
+        const shape = shapeById(id);
+        return shape && shape.layerId === layerId;
+      });
+      editingNodePathId = null;
+      requestRender();
+    }
+
+    function toggleLayerVisibility(layerId) {
+      const layer = layerById(layerId);
+      if (!layer) {
+        return;
+      }
+      pushHistory();
+      layer.visible = !layer.visible;
+      if (!layer.visible) {
+        selectedIds = selectedIds.filter((id) => {
+          const shape = shapeById(id);
+          return shape && shape.layerId !== layerId;
         });
       }
       requestRender();
@@ -3435,6 +3757,7 @@
       document.querySelectorAll("[data-tool]").forEach((button) => {
         button.setAttribute("aria-pressed", String(button.getAttribute("data-tool") === tool));
       });
+      stageShell.dataset.activeTool = tool;
       toolHint.textContent = toolHints[tool];
       polygonOptions.hidden = tool !== "polygon";
       cornerOption.hidden = tool !== "rect";
@@ -3926,6 +4249,65 @@
       }
     });
 
+    addLayer.addEventListener("click", addNewLayer);
+    duplicateLayer.addEventListener("click", duplicateActiveLayer);
+    moveLayerUp.addEventListener("click", () => moveActiveLayer(1));
+    moveLayerDown.addEventListener("click", () => moveActiveLayer(-1));
+    deleteLayer.addEventListener("click", deleteActiveLayer);
+
+    layerList.addEventListener("click", (event) => {
+      const visibilityButton = event.target.closest("[data-layer-visibility]");
+      if (visibilityButton) {
+        toggleLayerVisibility(Number(visibilityButton.getAttribute("data-layer-visibility")));
+        return;
+      }
+      const selectButton = event.target.closest("[data-layer-select]");
+      if (selectButton) {
+        selectLayer(Number(selectButton.getAttribute("data-layer-select")));
+      }
+    });
+
+    layerList.addEventListener("dblclick", (event) => {
+      const selectButton = event.target.closest("[data-layer-select]");
+      if (!selectButton) {
+        return;
+      }
+      editingLayerId = Number(selectButton.getAttribute("data-layer-select"));
+      requestRender();
+    });
+
+    function commitLayerRename(input, save) {
+      const layer = layerById(Number(input.getAttribute("data-layer-rename")));
+      editingLayerId = null;
+      if (layer && save) {
+        const name = input.value.trim();
+        if (name && name !== layer.name) {
+          pushHistory();
+          layer.name = name;
+        }
+      }
+      requestRender();
+    }
+
+    layerList.addEventListener("keydown", (event) => {
+      if (!event.target.hasAttribute || !event.target.hasAttribute("data-layer-rename")) {
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitLayerRename(event.target, true);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        commitLayerRename(event.target, false);
+      }
+    });
+
+    layerList.addEventListener("focusout", (event) => {
+      if (event.target.hasAttribute && event.target.hasAttribute("data-layer-rename") && editingLayerId !== null) {
+        commitLayerRename(event.target, true);
+      }
+    });
+
     sizePreset.addEventListener("change", () => {
       if (sizePreset.value === "custom") {
         return;
@@ -3979,6 +4361,10 @@
       selectedIds = [];
       editingNodePathId = null;
       penDraft = null;
+      // レイヤーは1枚だけ残す
+      layers = [layers.find((layer) => layer.id === activeLayerId) || createLayer()];
+      layers[0].visible = true;
+      activeLayerId = layers[0].id;
       requestRender();
       setNotice("白紙にしました");
     });
@@ -4094,7 +4480,7 @@
       }
       if (meta && event.key.toLowerCase() === "a" && !isTypingTarget(event.target)) {
         event.preventDefault();
-        selectedIds = shapes.filter((shape) => shape.visible).map((shape) => shape.id);
+        selectedIds = shapesOfLayer(activeLayerId).filter(isShapeVisible).map((shape) => shape.id);
         requestRender();
         return;
       }
@@ -4154,7 +4540,8 @@
         r: "rect",
         e: "ellipse",
         g: "polygon",
-        t: "text"
+        t: "text",
+        f: "fill"
       };
       const key = event.key.toLowerCase();
       if (shortcuts[key]) {
@@ -4207,6 +4594,7 @@
 
     lockAppTitle();
     buildPalette();
+    ensureLayer();
     setTool("select");
     syncStyleControls();
     syncCanvasControls();
